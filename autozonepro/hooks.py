@@ -46,6 +46,7 @@ app_license = "mit"
 doctype_js = {
     "Sales Order": [
         "public/js/hide_sales_order_butttons.js",
+        "public/js/update_delivery_note.js"
     ],
     "Packing List":[
         "public/js/packing_list_box-entry.js",

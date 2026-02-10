@@ -32,8 +32,7 @@ frappe.ui.form.on('Sales Order', {
                         frappe.model.with_doctype('Packing List', () => {
                             const pl = frappe.model.get_new_doc('Packing List');
 
-                            // THIS IS THE ONLY LINE YOU NEED TO CHANGE
-                            pl.custom_sales_order = frm.doc.name;   // ← Fixed!
+                            pl.custom_sales_order = frm.doc.name;  
                             pl.delivery_note = dn.name;
                             pl.custom_customer = dn.customer;
                             pl.custom_date = dn.posting_date;

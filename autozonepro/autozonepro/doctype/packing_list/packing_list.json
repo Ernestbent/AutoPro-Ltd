@@ -14,8 +14,7 @@
   "totals_section",
   "total_qty",
   "column_break_drgx",
-  "total_boxes",
-  "amended_from"
+  "total_boxes"
  ],
  "fields": [
   {
@@ -55,6 +54,7 @@
    "label": "Totals"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "total_qty",
    "fieldtype": "Int",
    "label": "Total Qty"
@@ -64,26 +64,18 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "description": "The total number of boxes in this packing slip",
    "fieldname": "total_boxes",
    "fieldtype": "Int",
    "label": "Total Boxes"
-  },
-  {
-   "fieldname": "amended_from",
-   "fieldtype": "Link",
-   "label": "Amended From",
-   "no_copy": 1,
-   "options": "Packing List",
-   "print_hide": 1,
-   "read_only": 1,
-   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
+ "is_submittable": 1,
  "links": [],
- "modified": "2025-11-27 09:07:42.350902",
+ "modified": "2026-02-12 12:01:58.645275",
  "modified_by": "Administrator",
  "module": "Autozonepro",
  "name": "Packing List",

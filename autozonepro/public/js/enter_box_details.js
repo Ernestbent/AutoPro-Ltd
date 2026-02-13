@@ -15,8 +15,8 @@ frappe.ui.form.on('Packing List', {
             frm.clear_table('table_hqkk');
             frm.clear_table('custom_box_summary');
             frm.refresh_fields();
+            set_item_filter(frm);  // reset filter when delivery note is cleared
         }
-        set_item_filter(frm);
         show_fill_button(frm);
         update_totals(frm);
     },
@@ -69,7 +69,6 @@ frappe.ui.form.on('Packaging Details', {
 });
 
 // --- Helper Functions ---
-
 function update_totals(frm) {
     const box_numbers = new Set((frm.doc.table_hqkk || []).map(r => r.box_number).filter(Boolean));
     const total_boxes = box_numbers.size;
@@ -80,13 +79,17 @@ function update_totals(frm) {
     frm.refresh_field('total_qty');
 }
 
-let active_box_dialog = null;
-
 function set_item_filter(frm) {
-    const items = (frm.doc.table_ttya || []).map(r => r.item).filter(Boolean);
-    frm.fields_dict.table_hqkk.grid.get_field('item').get_query = () => ({
-        filters: [['name', 'in', items.length ? items : ['-']]]
+    frm.set_query('item', 'table_hqkk', function(doc, cdt, cdn) {
+        const items = (frm.doc.table_ttya || []).map(r => r.item).filter(Boolean);
+        return {
+            filters: [['name', 'in', items.length ? items : ['-']]]
+        };
     });
+    // Force grid refresh to apply the new query immediately
+    if (frm.fields_dict.table_hqkk?.grid) {
+        frm.fields_dict.table_hqkk.grid.refresh();
+    }
 }
 
 function load_dn_items(frm) {
@@ -110,6 +113,7 @@ function load_dn_items(frm) {
                 row.remaining_qty = itm.qty;
             });
             frm.refresh_field('table_ttya');
+            set_item_filter(frm);          // Apply filter after loading items
             update_remaining_qty(frm);
             show_fill_button(frm);
             update_totals(frm);
@@ -137,6 +141,8 @@ function show_fill_button(frm) {
     }
 }
 
+let active_box_dialog = null;
+
 function open_box_dialog(frm) {
     const d = new frappe.ui.Dialog({
         title: __('Pack Items into Boxes'),
@@ -160,17 +166,16 @@ function open_box_dialog(frm) {
                         const old = (frm.doc.table_hqkk || []).filter(r => r.box_number == d.get_value('box_number') && r.item == row.doc.item).reduce((s, r) => s + (r.quantity || 0), 0);
                         const max = avail + old;
                         if (this.value > max) {
-                            frappe.msgprint({ 
+                            frappe.msgprint({
                                 title: __('Quantity Exceeds Available'),
-                                message: __('Cannot pack {0} units of <b>{1}</b>. Maximum available: {2}', [this.value, row.doc.item, max]), 
-                                indicator: 'red' 
+                                message: __('Cannot pack {0} units of <b>{1}</b>. Maximum available: {2}', [this.value, row.doc.item, max]),
+                                indicator: 'red'
                             });
                             this.set_value(0);
                             frappe.validated = false;
                             throw new Error(__('Quantity exceeds available stock'));
                         }
                     }
-                    // Update available items after quantity change
                     setTimeout(() => {
                         update_dialog_available_items(frm, d);
                     }, 100);
@@ -202,25 +207,18 @@ function open_box_dialog(frm) {
 
     active_box_dialog = d;
 
-    // --- Setup watchers for table changes ---
+    // Setup watchers for table changes
     const box_items_grid = d.fields_dict.box_items.grid;
-    
-    // Watch for row deletions
     box_items_grid.wrapper.on('click', '.grid-remove-rows, .grid-row-check', function() {
         setTimeout(() => {
             update_dialog_available_items(frm, d);
         }, 100);
     });
 
-    // --- Dynamic: When box number changes, reload items and weight ---
     d.fields_dict.box_number.df.onchange = () => {
         const bn = d.get_value('box_number');
-
-        // Load existing box weight
         const box = (frm.doc.custom_box_summary || []).find(b => b.box_number == bn);
         d.set_value('box_weight', box ? box.weight_kg : 0);
-
-        // Load items already in this box - create proper row objects
         const existing = (frm.doc.table_hqkk || [])
             .filter(r => r.box_number == bn)
             .map((r, idx) => ({
@@ -230,29 +228,20 @@ function open_box_dialog(frm) {
                 __islocal: 1,
                 __unsaved: 1
             }));
-
-        // Update the grid data
         d.fields_dict.box_items.df.data = existing;
         d.fields_dict.box_items.grid.df.data = existing;
-        
-        // Refresh the grid to show the loaded items
         d.fields_dict.box_items.grid.refresh();
-        
-        // If there are existing items, render them properly
         if (existing.length > 0) {
             setTimeout(() => {
                 d.fields_dict.box_items.grid.refresh();
             }, 100);
         }
-
-        // Update remaining qty and available items dynamically
         update_remaining_qty(frm);
         render_available_items(frm, d);
     };
 
     render_available_items(frm, d);
     d.show();
-
     d.$wrapper.on('hidden.bs.modal', () => {
         active_box_dialog = null;
         update_totals(frm);
@@ -261,32 +250,22 @@ function open_box_dialog(frm) {
 
 function update_dialog_available_items(frm, dialog) {
     if (!dialog) return;
-    
-    // Get current items in the dialog table (temporary state)
     const dialog_items = dialog.get_value('box_items') || [];
     const current_box = dialog.get_value('box_number');
-    
-    // Calculate remaining quantities considering dialog changes
     const temp_remaining = {};
     (frm.doc.table_ttya || []).forEach(inv => {
         temp_remaining[inv.item] = inv.qty;
     });
-    
-    // Subtract already packed items (excluding current box being edited)
     (frm.doc.table_hqkk || []).forEach(pack => {
         if (pack.box_number != current_box && temp_remaining[pack.item] !== undefined) {
             temp_remaining[pack.item] -= (pack.quantity || 0);
         }
     });
-    
-    // Subtract items currently in dialog
     dialog_items.forEach(item => {
         if (item.item && temp_remaining[item.item] !== undefined) {
             temp_remaining[item.item] -= (item.quantity || 0);
         }
     });
-    
-    // Render available items with updated quantities
     const avail = (frm.doc.table_ttya || [])
         .map(r => ({
             item: r.item,
@@ -294,7 +273,6 @@ function update_dialog_available_items(frm, dialog) {
             remaining_qty: Math.max(0, temp_remaining[r.item] || 0)
         }))
         .filter(r => r.remaining_qty > 0 || dialog_items.some(di => di.item === r.item));
-    
     let html = `<div style="max-height:200px;overflow-y:auto;border:1px solid #d1d8dd;border-radius:4px;padding:10px;">`;
     if (!avail.length) {
         html += `<p class="text-center text-muted">All items packed!</p>`;
@@ -320,8 +298,6 @@ function save_box(frm, vals, dialog) {
     const box = vals.box_number,
           weight = vals.box_weight,
           items = vals.box_items || [];
-
-    // Validate box weight
     if (weight === undefined || weight === null || weight <= 0) {
         frappe.msgprint({
             title: __('Missing Box Weight'),
@@ -330,12 +306,10 @@ function save_box(frm, vals, dialog) {
         });
         return false;
     }
-
     if (!items.length) {
         frappe.msgprint({ title: __('No Items'), message: __('Add at least one item.'), indicator: 'red' });
         return false;
     }
-
     for (const itm of items) {
         if (!itm.quantity || itm.quantity <= 0) {
             frappe.msgprint({ title: __('Invalid Qty'), message: __('Enter a valid quantity for {0}', [itm.item]), indicator: 'red' });
@@ -344,16 +318,14 @@ function save_box(frm, vals, dialog) {
         const avail = get_available_qty_for_item(frm, itm.item);
         const old = (frm.doc.table_hqkk || []).filter(r => r.box_number == box && r.item == itm.item).reduce((s, r) => s + (r.quantity || 0), 0);
         if (itm.quantity > avail + old) {
-            frappe.msgprint({ 
-                title: __('Quantity Exceeds Available'), 
-                message: __('Cannot pack {0} units of <b>{1}</b>. Maximum available: {2}', [itm.quantity, itm.item, avail + old]), 
-                indicator: 'red' 
+            frappe.msgprint({
+                title: __('Quantity Exceeds Available'),
+                message: __('Cannot pack {0} units of <b>{1}</b>. Maximum available: {2}', [itm.quantity, itm.item, avail + old]),
+                indicator: 'red'
             });
             return false;
         }
     }
-
-    // Save items to the box
     frm.doc.table_hqkk = (frm.doc.table_hqkk || []).filter(r => r.box_number != box);
     items.forEach(itm => {
         const row = frm.add_child('table_hqkk');
@@ -364,7 +336,6 @@ function save_box(frm, vals, dialog) {
         const inv = frm.doc.table_ttya.find(r => r.item === itm.item);
         if (inv) row.uom = inv.uom;
     });
-
     const summary = (frm.doc.custom_box_summary || []).find(b => b.box_number == box);
     if (summary) {
         summary.weight_kg = weight;
@@ -373,12 +344,10 @@ function save_box(frm, vals, dialog) {
         b.box_number = box;
         b.weight_kg = weight;
     }
-
     frm.refresh_field('table_hqkk');
     frm.refresh_field('custom_box_summary');
     update_remaining_qty(frm);
     update_totals(frm);
-
     return true;
 }
 

@@ -53,6 +53,9 @@ doctype_js = {
         "public/js/packing_list_box-entry.js",
         "public/js/js/packing_list_logic.js",
         "public/js/enter_box_details.js",
+    ],
+    "Delivery Note":[
+        "public/js/add_packing_list_on_dn.js"
     ]
 }
 

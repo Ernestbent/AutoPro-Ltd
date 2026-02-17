@@ -1,10 +1,13 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "naming_series:",
  "creation": "2026-02-14 13:49:43.646349",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "naming_section",
+  "naming_series",
   "driver_details_section",
   "first_name",
   "surname",
@@ -12,9 +15,10 @@
   "column_break_izlx",
   "tel_no",
   "vehicle_no",
-  "shipping_costs_section",
-  "table_ncgt",
-  "connections_tab"
+  "shipping_details_section",
+  "box_summary",
+  "connections_tab",
+  "sales_order"
  ],
  "fields": [
   {
@@ -44,7 +48,7 @@
   },
   {
    "fieldname": "tel_no",
-   "fieldtype": "Phone",
+   "fieldtype": "Data",
    "label": "Tel No"
   },
   {
@@ -53,28 +57,51 @@
    "label": "Vehicle No"
   },
   {
-   "fieldname": "shipping_costs_section",
-   "fieldtype": "Section Break",
-   "label": "Shipping Costs"
-  },
-  {
-   "fieldname": "table_ncgt",
-   "fieldtype": "Table",
-   "options": "Box Summary Table"
-  },
-  {
    "fieldname": "connections_tab",
    "fieldtype": "Tab Break",
    "label": "Connections"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order"
+  },
+  {
+   "fieldname": "shipping_details_section",
+   "fieldtype": "Section Break",
+   "label": "Shipping Details"
+  },
+  {
+   "fieldname": "box_summary",
+   "fieldtype": "Table",
+   "label": "Box Summary",
+   "options": "Box Summary Table"
+  },
+  {
+   "fieldname": "naming_section",
+   "fieldtype": "Section Break",
+   "label": "Naming"
+  },
+  {
+   "default": "CD-RT-.YYYY.-.####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "hidden": 1,
+   "in_list_view": 1,
+   "label": "Series",
+   "options": "CD-RT-.YYYY.-.####",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-14 14:08:25.102491",
+ "modified": "2026-02-17 15:23:47.341042",
  "modified_by": "Administrator",
  "module": "Autozonepro",
  "name": "Courier Details",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
